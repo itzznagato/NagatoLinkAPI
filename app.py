@@ -9,6 +9,7 @@ from flask import Flask, jsonify, request
 app = Flask(__name__)
 
 API_SECRET = os.environ.get("API_SECRET")
+
 codes = {}
 links = {}
 verified_queue = []
@@ -62,11 +63,15 @@ def verify_code():
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json(silent=True) or {}
-    code = str(data.get("code", "")).upper()
-    minecraft_uuid = str(data.get("minecraft_uuid", ""))
+    code = str(data.get("code", "")).upper().strip()
+    minecraft_uuid = str(
+        data.get("minecraft_uuid", "")
+    ).strip()
 
     if not minecraft_uuid:
-        return jsonify({"error": "Missing Minecraft UUID"}), 400
+        return jsonify({
+            "error": "Missing Minecraft UUID"
+        }), 400
 
     with lock:
         entry = codes.get(code)
@@ -81,6 +86,11 @@ def verify_code():
         codes.pop(code, None)
         links[minecraft_uuid] = discord_id
 
+        verified_queue.append({
+            "discord_id": discord_id,
+            "minecraft_uuid": minecraft_uuid
+        })
+
     return jsonify({
         "success": True,
         "discord_id": discord_id,
@@ -94,7 +104,9 @@ def check_link():
         return jsonify({"error": "Unauthorized"}), 401
 
     data = request.get_json(silent=True) or {}
-    minecraft_uuid = str(data.get("minecraft_uuid", "")).strip()
+    minecraft_uuid = str(
+        data.get("minecraft_uuid", "")
+    ).strip()
 
     if not minecraft_uuid:
         return jsonify({
@@ -104,9 +116,49 @@ def check_link():
     with lock:
         linked = minecraft_uuid in links
 
+    return jsonify({"linked": linked})
+
+
+@app.post("/pending-verifications")
+def pending_verifications():
+    if not authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    with lock:
+        pending = list(verified_queue)
+
+    return jsonify({"verifications": pending})
+
+
+@app.post("/ack-verification")
+def ack_verification():
+    if not authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    discord_id = str(data.get("discord_id", "")).strip()
+    minecraft_uuid = str(
+        data.get("minecraft_uuid", "")
+    ).strip()
+
+    if not discord_id or not minecraft_uuid:
+        return jsonify({
+            "error": "Missing Discord ID or Minecraft UUID"
+        }), 400
+
+    with lock:
+        for index, item in enumerate(verified_queue):
+            if (
+                item["discord_id"] == discord_id
+                and item["minecraft_uuid"] == minecraft_uuid
+            ):
+                verified_queue.pop(index)
+                return jsonify({"success": True})
+
     return jsonify({
-        "linked": linked
-    })
+        "success": False,
+        "error": "Verification not found"
+    }), 404
 
 
 if __name__ == "__main__":
