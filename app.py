@@ -11,6 +11,7 @@ app = Flask(__name__)
 API_SECRET = os.environ.get("API_SECRET")
 codes = {}
 links = {}
+verified_queue = []
 lock = Lock()
 
 CODE_LIFETIME = 300
