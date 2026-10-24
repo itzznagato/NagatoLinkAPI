@@ -25,7 +25,7 @@ def home():
 
 
 def authorized():
-    return (
+    return bool(
         API_SECRET
         and request.headers.get("X-API-Secret") == API_SECRET
     )
@@ -72,7 +72,9 @@ def verify_code():
 
         if not entry or entry["expires"] < time.time():
             codes.pop(code, None)
-            return jsonify({"error": "Invalid or expired code"}), 400
+            return jsonify({
+                "error": "Invalid or expired code"
+            }), 400
 
         discord_id = entry["discord_id"]
         codes.pop(code, None)
@@ -85,9 +87,30 @@ def verify_code():
     })
 
 
+@app.post("/check-link")
+def check_link():
+    if not authorized():
+        return jsonify({"error": "Unauthorized"}), 401
+
+    data = request.get_json(silent=True) or {}
+    minecraft_uuid = str(data.get("minecraft_uuid", "")).strip()
+
+    if not minecraft_uuid:
+        return jsonify({
+            "error": "Missing Minecraft UUID"
+        }), 400
+
+    with lock:
+        linked = minecraft_uuid in links
+
+    return jsonify({
+        "linked": linked
+    })
+
+
 if __name__ == "__main__":
     app.run(
         host="0.0.0.0",
         port=int(os.environ.get("PORT", 10000))
     )
-  
+    
