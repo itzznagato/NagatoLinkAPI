@@ -41,7 +41,7 @@ def join_code():
     minecraft_uuid = str(data.get("minecraft_uuid", "")).strip()
     username = str(data.get("username", "")).strip()
 
-    if not minecraft_uuid or not re.fullmatch(r"[A-Za-z0-9_]{3,16}", username):
+    if not minecraft_uuid or not re.fullmatch(r"[A-Za-z0-9_.]{3,16}", username):
         return jsonify({"error": "Invalid Minecraft identity"}), 400
 
     with lock:
