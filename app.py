@@ -73,7 +73,7 @@ def create_link_request():
     discord_id = str(data.get("discord_id", "")).strip()
     username = str(data.get("username", "")).strip()
 
-    if not discord_id.isdigit() or not re.fullmatch(r"[A-Za-z0-9_]{3,16}", username):
+    if not discord_id.isdigit() or not re.fullmatch(r"[A-Za-z0-9_.]{3,16}", username):
         return jsonify({"error": "Invalid Discord ID or Minecraft username"}), 400
 
     with lock:
